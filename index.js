@@ -5,7 +5,10 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
-    Events 
+    Events, 
+    REST, 
+    Routes, 
+    SlashCommandBuilder 
 } = require('discord.js');
 require('dotenv').config();
 
@@ -13,6 +16,29 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
+// Automatically register slash commands on bot startup
+const commands = [
+    new SlashCommandBuilder()
+        .setName('setupverify')
+        .setDescription('Create the verification panel')
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
+(async () => {
+    try {
+        console.log('🚀 Registering slash commands...');
+        await rest.put(
+            Routes.applicationCommands(process.env.APPLICATION_ID),
+            { body: commands }
+        );
+        console.log('✅ Slash commands registered!');
+    } catch (err) {
+        console.error(err);
+    }
+})();
+
+// Bot ready
 client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 });
@@ -21,27 +47,21 @@ client.once('ready', () => {
 client.on(Events.GuildMemberAdd, async member => {
     const guild = member.guild;
 
-    // Check for Unverified role
     let unverifiedRole = guild.roles.cache.find(r => r.name === "Unverified");
 
-    // If missing, create with random cool color
     if (!unverifiedRole) {
         const colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "DarkBlue"];
         const color = colors[Math.floor(Math.random() * colors.length)];
-
         unverifiedRole = await guild.roles.create({
             name: "Unverified",
             color: color,
             permissions: []
         });
-
         console.log(`🎨 Created Unverified role with color: ${color}`);
     }
 
-    // Assign Unverified role
     await member.roles.add(unverifiedRole);
 
-    // Hide all channels except #verify
     guild.channels.cache.forEach(channel => {
         if (channel.name !== "verify") {
             channel.permissionOverwrites.edit(member, { ViewChannel: false });
@@ -49,9 +69,8 @@ client.on(Events.GuildMemberAdd, async member => {
     });
 });
 
-// Handle slash command and verification button
+// Handle interactions
 client.on(Events.InteractionCreate, async interaction => {
-    // Slash command
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'setupverify') {
             if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator))
@@ -73,7 +92,6 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 
-    // Button click
     if (interaction.isButton()) {
         if (interaction.customId === 'verify_button') {
             const member = interaction.member;
@@ -85,7 +103,6 @@ client.on(Events.InteractionCreate, async interaction => {
             if (verifiedRole) await member.roles.add(verifiedRole);
             if (unverifiedRole) await member.roles.remove(unverifiedRole);
 
-            // Unlock all channels
             guild.channels.cache.forEach(channel => {
                 channel.permissionOverwrites.edit(member, { ViewChannel: true });
             });
@@ -95,8 +112,7 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// Keep bot alive (prevents Railway from stopping it)
-setInterval(() => {}, 1000 * 60 * 5); // every 5 minutes
+// Keep bot alive
+setInterval(() => {}, 1000 * 60 * 5);
 
-// Login
 client.login(process.env.TOKEN);
