@@ -4,14 +4,22 @@ require('dotenv').config();
 const commands = [
     new SlashCommandBuilder()
         .setName('setupverify')
-        .setDescription('Creates the verification panel')
-];
+        .setDescription('Create the verification panel')
+].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
-    await rest.put(
-        Routes.applicationCommands("1474820112799498494"),
-        { body: commands }
-    );
+    try {
+        console.log('🚀 Started registering slash commands.');
+
+        await rest.put(
+            Routes.applicationCommands(process.env.APPLICATION_ID),
+            { body: commands },
+        );
+
+        console.log('✅ Successfully registered slash commands.');
+    } catch (error) {
+        console.error(error);
+    }
 })();
