@@ -17,14 +17,14 @@ client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// Auto-create Unverified role if it doesn't exist and assign to new members
+// Auto-create Unverified role if missing and assign to new members
 client.on(Events.GuildMemberAdd, async member => {
     const guild = member.guild;
 
-    // Check if Unverified role exists
+    // Check for Unverified role
     let unverifiedRole = guild.roles.cache.find(r => r.name === "Unverified");
 
-    // If not, create it with a cool color
+    // If missing, create with random cool color
     if (!unverifiedRole) {
         const colors = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "DarkBlue"];
         const color = colors[Math.floor(Math.random() * colors.length)];
@@ -32,13 +32,13 @@ client.on(Events.GuildMemberAdd, async member => {
         unverifiedRole = await guild.roles.create({
             name: "Unverified",
             color: color,
-            permissions: [] // No permissions yet
+            permissions: []
         });
 
         console.log(`🎨 Created Unverified role with color: ${color}`);
     }
 
-    // Assign Unverified role to new member
+    // Assign Unverified role
     await member.roles.add(unverifiedRole);
 
     // Hide all channels except #verify
@@ -49,8 +49,9 @@ client.on(Events.GuildMemberAdd, async member => {
     });
 });
 
-// Handle verification button
+// Handle slash command and verification button
 client.on(Events.InteractionCreate, async interaction => {
+    // Slash command
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'setupverify') {
             if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator))
@@ -72,6 +73,7 @@ client.on(Events.InteractionCreate, async interaction => {
         }
     }
 
+    // Button click
     if (interaction.isButton()) {
         if (interaction.customId === 'verify_button') {
             const member = interaction.member;
@@ -83,7 +85,7 @@ client.on(Events.InteractionCreate, async interaction => {
             if (verifiedRole) await member.roles.add(verifiedRole);
             if (unverifiedRole) await member.roles.remove(unverifiedRole);
 
-            // Unlock all channels for member
+            // Unlock all channels
             guild.channels.cache.forEach(channel => {
                 channel.permissionOverwrites.edit(member, { ViewChannel: true });
             });
@@ -93,4 +95,8 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
+// Keep bot alive (prevents Railway from stopping it)
+setInterval(() => {}, 1000 * 60 * 5); // every 5 minutes
+
+// Login
 client.login(process.env.TOKEN);
